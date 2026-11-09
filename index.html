@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2b2350">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Сольфеджио: путь к поступлению</title>
+<style>
+:root{--bg:#f6f4ff;--ink:#1f1b3a;--muted:#6b6690;--card:#fff;--line:#e4e0f5;--violet:#6c4cf5;--violet-dk:#4f33cf;--teal:#12b5a6;--teal-dk:#0c8c80;--amber:#f2a516;--red:#e5484d;--red-dk:#b9363a}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{max-width:520px;margin:0 auto;min-height:100vh;padding:0 16px 32px}
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 0 10px;position:sticky;top:0;background:var(--bg);z-index:5}
+.brand{font-weight:800;font-size:18px;color:var(--violet)}
+.stats{display:flex;gap:12px;font-weight:700;font-size:15px}
+.stats span{display:flex;align-items:center;gap:4px}
+h1{font-size:22px;margin:6px 0 4px}
+.sub{color:var(--muted);font-size:14px;margin-bottom:16px}
+.path{display:flex;flex-direction:column;gap:14px;margin-top:8px}
+.unit{display:flex;gap:14px;align-items:center;background:var(--card);border:2px solid var(--line);border-radius:18px;padding:14px;cursor:pointer;transition:transform .12s}
+.unit:active{transform:scale(.98)}
+.unit.locked{opacity:.5;cursor:default}
+.dot{flex:0 0 52px;height:52px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:18px;color:#fff;background:var(--violet);box-shadow:0 4px 0 var(--violet-dk)}
+.unit.done .dot{background:var(--teal);box-shadow:0 4px 0 var(--teal-dk)}
+.unit.locked .dot{background:#b8b3d6;box-shadow:0 4px 0 #9a94c0}
+.unit h3{font-size:16px}
+.unit p{font-size:13px;color:var(--muted)}
+.btn{display:block;width:100%;border:0;border-radius:16px;padding:15px;font:800 16px system-ui;color:#fff;background:var(--violet);box-shadow:0 4px 0 var(--violet-dk);cursor:pointer;margin-top:14px;transition:transform .08s}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--violet-dk)}
+.btn.teal{background:var(--teal);box-shadow:0 4px 0 var(--teal-dk)}
+.btn.ghost{background:#fff;color:var(--violet);border:2px solid var(--line);box-shadow:0 4px 0 var(--line)}
+.btn:disabled{background:#cfcbe6;box-shadow:0 4px 0 #b4afd3;cursor:default}
+.theory{background:var(--card);border:2px solid var(--line);border-radius:18px;padding:16px;margin-top:6px}
+.theory h4{font-size:15px;margin:12px 0 4px;color:var(--violet-dk)}
+.theory h4:first-child{margin-top:0}
+.theory p,.theory li{font-size:15px}
+.theory ul{padding-left:20px}
+.theory b{color:var(--ink)}
+.bar{height:14px;background:var(--line);border-radius:8px;overflow:hidden;margin:6px 0 16px}
+.bar i{display:block;height:100%;width:0;background:var(--teal);border-radius:8px;transition:width .3s}
+.q{font-size:19px;font-weight:700;margin:10px 0 14px}
+.opts{display:grid;gap:10px}
+.opt{border:2px solid var(--line);background:#fff;border-radius:14px;padding:14px;font:600 16px system-ui;color:var(--ink);text-align:left;cursor:pointer;box-shadow:0 3px 0 var(--line)}
+.opt.sel{border-color:var(--violet);background:#efeaff}
+.opt.ok{border-color:var(--teal);background:#e3f8f5}
+.opt.bad{border-color:var(--red);background:#fdeaea}
+.play{display:flex;gap:10px;margin-bottom:12px}
+.play button{flex:1}
+.fb{border-radius:14px;padding:12px 14px;margin-top:14px;font-size:15px;display:none}
+.fb.ok{display:block;background:#e3f8f5;color:var(--teal-dk)}
+.fb.bad{display:block;background:#fdeaea;color:var(--red-dk)}
+.center{text-align:center}
+.big{font-size:56px;margin:18px 0 6px}
+.back{background:none;border:0;color:var(--muted);font:600 15px system-ui;cursor:pointer;padding:6px 0}
+.hint{font-size:13px;color:var(--muted);margin-top:18px}
+@keyframes pop{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}
+.pop{animation:pop .35s ease}
+</style>
+</head>
+<body>
+<header><div class="brand">♪ Сольфеджио</div><div class="stats"><span title="Дней подряд">🔥 <b id="streak">0</b></span><span title="Опыт">⭐ <b id="xp">0</b></span></div></header>
+<main id="app"></main>
+<script>
+/*ENGINE START*/
+const LETTERS = ["c", "d", "e", "f", "g", "a", "h"];
+const SYL = ["до", "ре", "ми", "фа", "соль", "ля", "си"];
+const BASE = [0, 2, 4, 5, 7, 9, 11];
+const ACC_RU = { "-2": "-дубль-бемоль", "-1": "-бемоль", "0": "", "1": "-диез", "2": "-дубль-диез" };
+const note = (step, acc = 0, oct = 4) => ({ step, acc, oct });
+const noteName = (n) => SYL[n.step] + ACC_RU[n.acc];
+const semis = (n) => n.oct * 12 + BASE[n.step] + n.acc;
+const midi = (n) => semis(n) + 12;
+// Interval: number (1..8) and quality
+const PERFECT = { 1: 0, 4: 5, 5: 7, 8: 12 };
+const MAJOR = { 2: 2, 3: 4, 6: 9, 7: 11 };
+function intervalBetween(a, b) {                       // b is above a
+  const num = (b.oct * 7 + b.step) - (a.oct * 7 + a.step) + 1;
+  const s = semis(b) - semis(a);
+  if (PERFECT[num] !== undefined) {
+    const d = s - PERFECT[num];
+    return { num, q: d === 0 ? "ч" : d === 1 ? "ув" : d === -1 ? "ум" : "?", s };
+  }
+  const d = s - MAJOR[num];
+  return { num, q: d === 0 ? "б" : d === -1 ? "м" : d === 1 ? "ув" : d === -2 ? "ум" : "?", s };
+}
+const ivName = (iv) => iv.q + iv.num;
+function buildUp(a, num, q) {                          // note num steps above a with quality q
+  const idx = a.oct * 7 + a.step + num - 1;
+  const t = note(idx % 7, 0, Math.floor(idx / 7));
+  const want = semis(a) + (PERFECT[num] !== undefined
+    ? PERFECT[num] + ({ "ч": 0, "ув": 1, "ум": -1 })[q]
+    : MAJOR[num] + ({ "б": 0, "м": -1, "ув": 1, "ум": -2 })[q]);
+  t.acc = want - semis(t);
+  return t;
+}
+const IV_FULL = { "ч1": "чистая прима", "м2": "малая секунда", "б2": "большая секунда", "м3": "малая терция", "б3": "большая терция",
+  "ч4": "чистая кварта", "ув4": "увеличенная кварта", "ум5": "уменьшённая квинта", "ч5": "чистая квинта", "м6": "малая секста",
+  "б6": "большая секста", "м7": "малая септима", "б7": "большая септима", "ч8": "чистая октава", "ув2": "увеличенная секунда",
+  "ум7": "уменьшённая септима", "ув5": "увеличенная квинта", "ум4": "уменьшённая кварта" };
+const tones = (s) => (s / 2).toString().replace(".", ",") + " " + (s === 2 ? "тон" : s % 2 ? "тона" : s / 2 >= 5 ? "тонов" : "тона");
+function invert(name) {                                 // ч↔ч, м↔б, ув↔ум; numbers sum to 9
+  const q = name.match(/^\D+/)[0], n = +name.slice(q.length);
+  return ({ "ч": "ч", "м": "б", "б": "м", "ув": "ум", "ум": "ув" })[q] + (9 - n);
+}
+// Keys: circle of fifths. Major tonics with k sharps (k>0) or |k| flats (k<0)
+const MAJ = { 0: note(0), 1: note(4), 2: note(1), 3: note(5), 4: note(2), 5: note(6), 6: note(3, 1), 7: note(0, 1),
+  "-1": note(3), "-2": note(6, -1), "-3": note(2, -1), "-4": note(5, -1), "-5": note(1, -1), "-6": note(4, -1), "-7": note(0, -1) };
+const SHARPS = [3, 0, 4, 1, 5, 2, 6], FLATS = [6, 2, 5, 1, 4, 0, 3];
+const relMinor = (t) => { const m = buildUp(t, 6, "б"); m.oct = 3; return m; };    // down a m3 = up a b6
+const keySig = (k) => (k > 0 ? SHARPS.slice(0, k).map((s) => note(s, 1)) : FLATS.slice(0, -k).map((s) => note(s, -1)));
+const majName = (k) => noteName(MAJ[k]) + " мажор";
+const minName = (k) => noteName(relMinor(MAJ[k])) + " минор";
+function scale(tonic, kind) {                            // kinds: maj, maj_h, min, min_h, min_m
+  const pat = { maj: [2, 2, 1, 2, 2, 2, 1], maj_h: [2, 2, 1, 2, 1, 3, 1], min: [2, 1, 2, 2, 1, 2, 2],
+                min_h: [2, 1, 2, 2, 1, 3, 1], min_m: [2, 1, 2, 2, 2, 2, 1] }[kind];
+  const out = [{ ...tonic }];
+  for (let i = 0; i < 7; i++) {
+    const prev = out[i], idx = prev.oct * 7 + prev.step + 1;
+    const n = note(idx % 7, 0, Math.floor(idx / 7));
+    n.acc = semis(prev) + pat[i] - semis(n);
+    out.push(n);
+  }
+  return out;
+}
+const TRIADS = { "Б53": ["б3", "ч5"], "М53": ["м3", "ч5"], "Ув53": ["б3", "ув5"], "Ум53": ["м3", "ум5"] };
+const triad = (root, type) => [root, ...TRIADS[type].map((iv) => buildUp(root, +iv.match(/\d/)[0], iv.match(/^\D+/)[0]))];
+const D7 = (majTonic) => { const v = buildUp(majTonic, 5, "ч"); return [v, buildUp(v, 3, "б"), buildUp(v, 5, "ч"), buildUp(v, 7, "м")]; };
+/*ENGINE END*/
+
+// ---------------------------------------------------------------- random helpers
+const R = (n) => Math.floor(Math.random() * n);
+const signs = (j, sharp) => `${j} ${sharp ? (j === 1 ? "диез" : j < 5 ? "диеза" : "диезов") : (j === 1 ? "бемоль" : j < 5 ? "бемоля" : "бемолей")}`;
+const pick = (a) => a[R(a.length)];
+const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = R(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const optionsWith = (right, pool) => shuffle([right, ...shuffle(pool.filter((x) => x !== right)).slice(0, 3)]);
+const natural = () => note(R(7), 0, 4);
+const simpleNote = () => { const n = note(R(7), pick([0, 0, 0, 1, -1]), 4); return n; };
+const notesStr = (arr) => arr.map(noteName).join(" — ");
+const SIMPLE_IV = ["м2", "б2", "м3", "б3", "ч4", "ув4", "ум5", "ч5", "м6", "б6", "м7", "б7", "ч8"];
+
+// ---------------------------------------------------------------- audio (Web Audio, simple soft piano-like tone)
+let AC = null;
+function tone(m, t0, dur) {
+  AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+  if (AC.state === "suspended") AC.resume();
+  const f = 440 * Math.pow(2, (m - 69) / 12), o = AC.createOscillator(), o2 = AC.createOscillator(), g = AC.createGain();
+  o.type = "triangle"; o2.type = "sine"; o.frequency.value = f; o2.frequency.value = f * 2;
+  const g2 = AC.createGain(); g2.gain.value = 0.25; o2.connect(g2); g2.connect(g); o.connect(g); g.connect(AC.destination);
+  const st = AC.currentTime + t0;
+  g.gain.setValueAtTime(0.0001, st); g.gain.exponentialRampToValueAtTime(0.35, st + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, st + dur);
+  o.start(st); o2.start(st); o.stop(st + dur + 0.05); o2.stop(st + dur + 0.05);
+}
+const playMelodic = (ns, step = 0.6) => ns.forEach((n, i) => tone(midi(n), i * step, 0.9));
+const playHarmonic = (ns) => ns.forEach((n) => tone(midi(n), 0, 1.6));
+
+// ---------------------------------------------------------------- question generators
+const G = {
+  toneSemitone() {
+    const a = natural(), up = pick([1, 2]), b = { ...a };
+    const idx = a.step + 1; b.step = idx % 7; b.oct = a.oct + Math.floor(idx / 7); b.acc = 0;
+    const s = semis(b) - semis(a);
+    return { q: `Между звуками ${noteName(a)} и ${noteName(b)} (вверх) —`, opts: shuffle(["полутон", "тон", "полтора тона"]),
+             a: s === 1 ? "полутон" : s === 2 ? "тон" : "полтора тона", why: `${noteName(a)}–${noteName(b)}: ${s === 1 ? "полутон" : "тон"} (${s} ${s === 1 ? "полутон" : "полутона"}). Полутоны между натуральными звуками — только ми–фа и си–до.` };
+  },
+  enharmonic() {
+    const pairs = [["до-диез", "ре-бемоль"], ["ре-диез", "ми-бемоль"], ["фа-диез", "соль-бемоль"], ["соль-диез", "ля-бемоль"],
+                   ["ля-диез", "си-бемоль"], ["ми-диез", "фа"], ["си-диез", "до"], ["фа-бемоль", "ми"], ["до-бемоль", "си"]];
+    const [x, y] = pick(pairs), all = pairs.map((p) => p[1]);
+    return { q: `Энгармонически равен звуку «${x}»:`, opts: optionsWith(y, all), a: y, why: `${x} и ${y} звучат одинаково, но пишутся по-разному — это энгармонизм.` };
+  },
+  durations() {
+    const Q = [["Сколько восьмых в половинной?", "4", ["2", "4", "8", "3"]], ["Сколько шестнадцатых в четверти?", "4", ["2", "4", "8", "6"]],
+      ["Сколько четвертей в целой?", "4", ["2", "4", "8", "3"]], ["Чему равна четверть с точкой?", "3 восьмых", ["3 восьмых", "2 восьмых", "4 восьмых", "5 шестнадцатых"]],
+      ["Сколько восьмых в такте 3/4?", "6", ["3", "6", "4", "8"]], ["Сколько четвертей в такте 6/8?", "3", ["2", "3", "6", "4"]],
+      ["Триоль из восьмых занимает время…", "одной четверти", ["одной четверти", "одной восьмой", "половинной", "четверти с точкой"]],
+      ["Размер 6/8 — это размер…", "сложный (две доли по три восьмых)", ["простой", "сложный (две доли по три восьмых)", "смешанный", "переменный"]]];
+    const [q, a, o] = pick(Q);
+    return { q, opts: shuffle(o), a, why: "Точка увеличивает длительность наполовину; триоль — три ноты на время двух." };
+  },
+  scaleMajorKind() {
+    const t = MAJ[pick([0, 1, 2, -1, -2, 3, -3])], kind = pick(["maj", "maj_h"]), sc = scale(t, kind);
+    const deg = kind === "maj" ? sc[5] : sc[5];
+    const right = noteName(deg), wrong = [noteName(scale(t, kind === "maj" ? "maj_h" : "maj")[5]), noteName(sc[4]), noteName(sc[6])];
+    return { q: `${kind === "maj" ? "Натуральный" : "Гармонический"} ${noteName(t)} мажор: какая VI ступень?`, opts: shuffle([...new Set([right, ...wrong])]), a: right,
+             why: kind === "maj" ? "В натуральном мажоре VI ступень по ключевым знакам." : "В гармоническом мажоре VI ступень понижается." };
+  },
+  minorKinds() {
+    const k = pick([0, 1, 2, -1, -2, -3]), t = relMinor(MAJ[k]), kind = pick(["min_h", "min_m"]), sc = scale(t, kind);
+    const right = kind === "min_h" ? `VII ступень: ${noteName(sc[6])}` : `VI и VII: ${noteName(sc[5])}, ${noteName(sc[6])}`;
+    const nat = scale(t, "min");
+    const opts = [`VII ступень: ${noteName(scale(t, "min_h")[6])}`, `VI и VII: ${noteName(scale(t, "min_m")[5])}, ${noteName(scale(t, "min_m")[6])}`,
+                  `VI ступень: ${noteName(nat[5])}`, `III ступень: ${noteName(nat[2])}`];
+    return { q: `${kind === "min_h" ? "Гармонический" : "Мелодический (вверх)"} ${noteName(t)} минор: что повышается?`, opts: shuffle(opts), a: right,
+             why: "Гармонический минор — повышенная VII; мелодический вверх — повышенные VI и VII, вниз — натуральный." };
+  },
+  keySigCount() {
+    const k = pick([1, 2, 3, 4, 5, 6, -1, -2, -3, -4, -5, -6]), maj = Math.random() < 0.5;
+    const name = maj ? majName(k) : minName(k), right = signs(Math.abs(k), k > 0);
+    const opts = new Set([right]);
+    while (opts.size < 4) { const j = pick([1, 2, 3, 4, 5, 6]), s = pick([1, -1]); opts.add(signs(j, s > 0)); }
+    return { q: `Сколько ключевых знаков в тональности ${name}?`, opts: shuffle([...opts]), a: right,
+             why: `${name}: ${keySig(k).map(noteName).join(", ")}. Диезы: фа, до, соль, ре, ля, ми, си; бемоли — в обратном порядке.` };
+  },
+  parallel() {
+    const k = pick([0, 1, 2, 3, -1, -2, -3, -4]), right = minName(k);
+    const pool = [0, 1, 2, 3, -1, -2, -3, -4, 4].map(minName);
+    return { q: `Параллельная тональность к ${majName(k)}:`, opts: optionsWith(right, pool), a: right,
+             why: "Параллельный минор — на малую терцию ниже мажора, ключевые знаки одинаковые." };
+  },
+  nameInterval() {
+    const a = natural(), name = pick(SIMPLE_IV), q = name.match(/^\D+/)[0], n = +name.slice(q.length), b = buildUp(a, n, q);
+    return { q: `Какой интервал: ${noteName(a)} — ${noteName(b)} (вверх)?`, opts: optionsWith(IV_FULL[name], SIMPLE_IV.map((x) => IV_FULL[x])), a: IV_FULL[name],
+             why: `${IV_FULL[name]}: ${n} ступени, ${tones(semis(b) - semis(a))}.` };
+  },
+  ivTones() {
+    const name = pick(SIMPLE_IV), s = (PERFECT[+name.slice(-1)] ?? MAJOR[+name.slice(-1)]) + ({ "ч": 0, "б": 0, "м": -1, "ув": 1, "ум": -1 })[name.match(/^\D+/)[0]];
+    const right = tones(s), pool = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(tones);
+    return { q: `Сколько тонов в интервале «${IV_FULL[name]}»?`, opts: optionsWith(right, pool), a: right, why: `${IV_FULL[name]} = ${right}.` };
+  },
+  inversion() {
+    const name = pick(SIMPLE_IV.filter((x) => x !== "ч8")), right = IV_FULL[invert(name)];
+    return { q: `При обращении «${IV_FULL[name]}» получится…`, opts: optionsWith(right, SIMPLE_IV.map((x) => IV_FULL[x])), a: right,
+             why: "При обращении сумма ступеней = 9; чистые остаются чистыми, малые ↔ большие, увеличенные ↔ уменьшённые." };
+  },
+  tritone() {
+    const k = pick([0, 1, 2, -1, -2]), sc = scale(MAJ[k], "maj"), ask4 = Math.random() < 0.5;
+    const right = ask4 ? `IV ступени (${noteName(sc[3])} — ${noteName(sc[6])})` : `VII ступени (${noteName(sc[6])} — ${noteName(sc[3])})`;
+    const opts = [`IV ступени (${noteName(sc[3])} — ${noteName(sc[6])})`, `VII ступени (${noteName(sc[6])} — ${noteName(sc[3])})`,
+                  `V ступени (${noteName(sc[4])} — ${noteName(sc[0])})`, `II ступени (${noteName(sc[1])} — ${noteName(sc[4])})`];
+    return { q: `В натуральном ${majName(k)} ${ask4 ? "ув4" : "ум5"} строится на…`, opts: shuffle(opts), a: right,
+             why: "В натуральном мажоре ув4 — на IV ступени, ум5 — на VII. Ув4 разрешается в сексту, ум5 — в терцию." };
+  },
+  characteristic() {
+    const k = pick([0, 1, 2, -1, -2]), t = relMinor(MAJ[k]), sc = scale(t, "min_h"), which = pick(["ув2", "ум7"]);
+    const right = which === "ув2" ? `VI ступени (${noteName(sc[5])} — ${noteName(sc[6])})` : `VII ступени (${noteName(sc[6])} — ${noteName(sc[5])})`;
+    const opts = [`VI ступени (${noteName(sc[5])} — ${noteName(sc[6])})`, `VII ступени (${noteName(sc[6])} — ${noteName(sc[5])})`,
+                  `III ступени (${noteName(sc[2])} — ${noteName(sc[6])})`, `II ступени (${noteName(sc[1])} — ${noteName(sc[5])})`];
+    return { q: `В гармоническом ${noteName(t)} миноре ${which} строится на…`, opts: shuffle(opts), a: right,
+             why: "Характерные интервалы гармонического минора: ув2 на VI ступени, ум7 на VII (повышенной), ув5 на III, ум4 на VII." };
+  },
+  buildTriad() {
+    const root = natural(), type = pick(Object.keys(TRIADS)), right = notesStr(triad(root, type));
+    const opts = Object.keys(TRIADS).map((t) => notesStr(triad(root, t)));
+    return { q: `Постройте ${type} от звука ${noteName(root)}:`, opts: shuffle(opts), a: right,
+             why: "Б53 = б3+м3, М53 = м3+б3, Ув53 = б3+б3, Ум53 = м3+м3." };
+  },
+  triadInv() {
+    const Q = [["Первое обращение трезвучия называется…", "секстаккорд (6)"], ["Второе обращение трезвучия называется…", "квартсекстаккорд (64)"],
+               ["Секстаккорд состоит из…", "терции и кварты"], ["Квартсекстаккорд состоит из…", "кварты и терции"]];
+    const [q, a] = pick(Q), pool = ["секстаккорд (6)", "квартсекстаккорд (64)", "терции и кварты", "кварты и терции", "двух терций", "терции и квинты"];
+    return { q, opts: optionsWith(a, pool), a, why: "Трезвучие (53) → секстаккорд (6): терция + кварта → квартсекстаккорд (64): кварта + терция." };
+  },
+  mainTriads() {
+    const k = pick([0, 1, 2, -1, -2, 3]), sc = scale(MAJ[k], "maj"), f = pick([["T", 0], ["S", 3], ["D", 4]]);
+    const right = notesStr(triad(sc[f[1]], "Б53")), opts = [0, 3, 4, 1].map((i) => notesStr(triad(sc[i], i === 1 ? "М53" : "Б53")));
+    return { q: `${f[0]}53 в ${majName(k)}:`, opts: shuffle(opts), a: right, why: "Главные трезвучия: T — на I ступени, S — на IV, D — на V. В мажоре все три — большие." };
+  },
+  d7() {
+    const k = pick([0, 1, 2, -1, -2, 3, -3]), right = notesStr(D7(MAJ[k]));
+    const t = MAJ[k], wrong = [notesStr(triad(buildUp(t, 5, "ч"), "Б53")), notesStr([...triad(t, "Б53"), buildUp(t, 7, "б")]),
+                                notesStr([...triad(buildUp(t, 4, "ч"), "Б53"), buildUp(buildUp(t, 4, "ч"), 7, "м")])];
+    return { q: `Доминантсептаккорд (D7) в ${majName(k)}:`, opts: shuffle([right, ...wrong]), a: right,
+             why: "D7 строится на V ступени: большое трезвучие + малая септима. Одноимённый минор: D7 тот же (в гармоническом миноре)." };
+  },
+  // ear training
+  earInterval() {
+    const name = pick(["м2", "б2", "м3", "б3", "ч4", "ч5", "м6", "б6", "ч8"]), q = name.match(/^\D+/)[0], n = +name.slice(q.length);
+    const a = note(R(7), 0, 4), b = buildUp(a, n, q), harm = Math.random() < 0.5;
+    return { q: `Какой интервал звучит (${harm ? "гармонически" : "мелодически"})?`, play: () => (harm ? playHarmonic([a, b]) : playMelodic([a, b])),
+             opts: optionsWith(IV_FULL[name], ["м2", "б2", "м3", "б3", "ч4", "ч5", "м6", "б6", "ч8"].map((x) => IV_FULL[x])), a: IV_FULL[name],
+             why: `Звучала ${IV_FULL[name]}: ${noteName(a)} — ${noteName(b)}.` };
+  },
+  earTriad() {
+    const root = note(R(7), 0, 4), type = pick(Object.keys(TRIADS)), ns = triad(root, type);
+    const label = { "Б53": "большое (мажорное)", "М53": "малое (минорное)", "Ув53": "увеличенное", "Ум53": "уменьшённое" };
+    return { q: "Какое трезвучие звучит?", play: () => playHarmonic(ns), opts: shuffle(Object.values(label)), a: label[type],
+             why: `Звучало ${label[type]} трезвучие от ${noteName(root)}.` };
+  },
+  earMode() {
+    const k = pick([0, 1, -1, 2]), kind = pick(["maj", "min", "min_h", "min_m"]);
+    const t = kind === "maj" ? MAJ[k] : relMinor(MAJ[k]); const sc = scale(t, kind);
+    const label = { maj: "мажор натуральный", min: "минор натуральный", min_h: "минор гармонический", min_m: "минор мелодический" };
+    return { q: "Какой лад звучит (гамма вверх)?", play: () => playMelodic(sc, 0.38), opts: shuffle(Object.values(label)), a: label[kind],
+             why: "Гармонический минор узнаётся по ув2 между VI и VII, мелодический — по «мажорному» верху." };
+  },
+};
+
+// ---------------------------------------------------------------- course
+const UNITS = [
+  { id: "basics", title: "Звуки, тон и полутон", sub: "Звукоряд, альтерация, энгармонизм", gens: ["toneSemitone", "enharmonic"], theory: `
+    <h4>Звукоряд</h4><p>Семь основных ступеней: <b>до, ре, ми, фа, соль, ля, си</b> (буквами: c, d, e, f, g, a, h). Через октаву названия повторяются.</p>
+    <h4>Тон и полутон</h4><p><b>Полутон</b> — самое близкое расстояние между звуками (соседние клавиши). <b>Тон</b> = два полутона. Между натуральными звуками полутоны только <b>ми–фа</b> и <b>си–до</b>, остальные — тоны.</p>
+    <h4>Знаки альтерации</h4><ul><li>♯ диез — повышает на полутон, ♭ бемоль — понижает;</li><li>𝄪 дубль-диез и 𝄫 дубль-бемоль — на тон;</li><li>♮ бекар отменяет знак.</li></ul>
+    <h4>Энгармонизм</h4><p>Звуки одинаковой высоты с разными названиями: до-диез = ре-бемоль, ми-диез = фа, си-диез = до.</p>` },
+  { id: "rhythm", title: "Длительности и размер", sub: "Точка, триоль, простые и сложные размеры", gens: ["durations"], theory: `
+    <h4>Длительности</h4><p>Целая = 2 половинных = 4 четверти = 8 восьмых = 16 шестнадцатых.</p>
+    <h4>Точка и триоль</h4><p><b>Точка</b> увеличивает длительность наполовину: четверть с точкой = 3 восьмых. <b>Триоль</b> — три ноты на время двух.</p>
+    <h4>Размер</h4><ul><li><b>Простые</b>: 2/4, 3/4, 3/8 — одна сильная доля.</li><li><b>Сложные</b>: 4/4, 6/8 — из одинаковых простых (6/8 = 3/8 + 3/8).</li><li><b>Смешанные</b>: 5/4, 7/8 — из разных простых.</li></ul>
+    <h4>Группировка</h4><p>Длительности группируются по долям такта, чтобы была видна каждая доля.</p>` },
+  { id: "major", title: "Мажор", sub: "Строение, натуральный и гармонический", gens: ["scaleMajorKind", "keySigCount"], theory: `
+    <h4>Строение натурального мажора</h4><p><b>Т–Т–П–Т–Т–Т–П</b> (тон, тон, полутон, тон, тон, тон, полутон).</p>
+    <h4>Виды мажора</h4><ul><li><b>Натуральный</b> — по ключевым знакам.</li><li><b>Гармонический</b> — понижена VI ступень (между VI и VII — ув2).</li><li><b>Мелодический</b> — вниз понижены VI и VII ступени.</li></ul>
+    <h4>Ступени</h4><p>I — тоника (T), IV — субдоминанта (S), V — доминанта (D). Устойчивые: I, III, V; неустойчивые: II, IV, VI, VII.</p>` },
+  { id: "minor", title: "Минор", sub: "Натуральный, гармонический, мелодический", gens: ["minorKinds", "keySigCount"], theory: `
+    <h4>Натуральный минор</h4><p><b>Т–П–Т–Т–П–Т–Т</b>, по ключевым знакам.</p>
+    <h4>Гармонический минор</h4><p>Повышена <b>VII</b> ступень: появляется вводный тон и ув2 между VI и VII.</p>
+    <h4>Мелодический минор</h4><p>Вверх повышены <b>VI и VII</b> ступени, вниз — натуральный минор.</p>
+    <h4>Пример: ля минор</h4><p>Гармонический: ля си до ре ми фа <b>соль-диез</b> ля. Мелодический вверх: … <b>фа-диез, соль-диез</b> ля.</p>` },
+  { id: "keys", title: "Тональности и квинтовый круг", sub: "Ключевые знаки, параллельные тональности", gens: ["keySigCount", "parallel"], theory: `
+    <h4>Квинтовый круг</h4><p>Каждая следующая диезная тональность — на <b>чистую квинту выше</b>, и знаков становится на один больше: C → G (1♯) → D (2♯) → A (3♯) → E (4♯) → H (5♯) → Fis (6♯) → Cis (7♯).</p>
+    <p>Бемольные — на квинту ниже: F (1♭) → B (2♭) → Es (3♭) → As (4♭) → Des (5♭) → Ges (6♭) → Ces (7♭).</p>
+    <h4>Порядок знаков</h4><p>Диезы: <b>фа, до, соль, ре, ля, ми, си</b>. Бемоли — наоборот: <b>си, ми, ля, ре, соль, до, фа</b>.</p>
+    <h4>Параллельные и одноимённые</h4><p><b>Параллельные</b> — одинаковые знаки, минор на м3 ниже (C-dur и a-moll). <b>Одноимённые</b> — одна тоника (C-dur и c-moll).</p>` },
+  { id: "intervals", title: "Интервалы", sub: "Названия, ступени и тоны", gens: ["nameInterval", "ivTones"], theory: `
+    <h4>Что такое интервал</h4><p>Сочетание двух звуков. Его <b>ступеневая величина</b> — число ступеней (прима, секунда, терция, кварта, квинта, секста, септима, октава), <b>тоновая</b> — число тонов.</p>
+    <h4>Простые интервалы</h4><ul><li>ч1 — 0 тонов; м2 — ½; б2 — 1;</li><li>м3 — 1½; б3 — 2; ч4 — 2½;</li><li>ув4 и ум5 — 3 тона (тритоны);</li><li>ч5 — 3½; м6 — 4; б6 — 4½;</li><li>м7 — 5; б7 — 5½; ч8 — 6.</li></ul>` },
+  { id: "inversion", title: "Обращение интервалов и тритоны", sub: "Правило девяти, ув4 и ум5 в ладу", gens: ["inversion", "tritone"], theory: `
+    <h4>Обращение</h4><p>Нижний звук переносится на октаву вверх (или верхний — вниз). Сумма ступеней = <b>9</b>: секунда ↔ септима, терция ↔ секста, кварта ↔ квинта.</p>
+    <p>Качество: <b>ч ↔ ч, м ↔ б, ув ↔ ум</b>. Пример: б3 → м6.</p>
+    <h4>Тритоны в мажоре</h4><p><b>Ув4</b> — на IV ступени, разрешается в сексту (наружу). <b>Ум5</b> — на VII ступени, разрешается в терцию (внутрь).</p>` },
+  { id: "characteristic", title: "Характерные интервалы", sub: "Ув2, ум7, ув5, ум4", gens: ["characteristic", "inversion"], theory: `
+    <h4>Откуда берутся</h4><p>Возникают в <b>гармонических</b> ладах из-за повышенной VII ступени в миноре или пониженной VI в мажоре.</p>
+    <h4>В гармоническом миноре</h4><ul><li><b>ув2</b> — на VI ступени, <b>ум7</b> — на VII (обращение ув2);</li><li><b>ув5</b> — на III ступени, <b>ум4</b> — на VII (обращение ув5).</li></ul>
+    <p>Все характерные интервалы разрешаются в устойчивые звуки лада.</p>` },
+  { id: "triads", title: "Трезвучия и обращения", sub: "Б53, М53, Ув53, Ум53, 6 и 64", gens: ["buildTriad", "triadInv"], theory: `
+    <h4>Виды трезвучий</h4><ul><li><b>Б53</b> (мажорное) = б3 + м3;</li><li><b>М53</b> (минорное) = м3 + б3;</li><li><b>Ув53</b> = б3 + б3;</li><li><b>Ум53</b> = м3 + м3.</li></ul>
+    <h4>Обращения</h4><p><b>Секстаккорд (6)</b> — терция внизу перенесена наверх: терция + кварта. <b>Квартсекстаккорд (64)</b>: кварта + терция.</p>` },
+  { id: "functions", title: "Главные трезвучия и D7", sub: "T, S, D и доминантсептаккорд", gens: ["mainTriads", "d7"], theory: `
+    <h4>Главные трезвучия</h4><p><b>T53</b> — на I ступени, <b>S53</b> — на IV, <b>D53</b> — на V. В мажоре все большие; в натуральном миноре — малые, в гармоническом D53 большое.</p>
+    <h4>Доминантсептаккорд</h4><p><b>D7</b> строится на V ступени: большое трезвучие + малая септима. Разрешается в неполное тоническое трезвучие с утроенной тоникой.</p>
+    <h4>Обращения D7</h4><p><b>D65</b> (на VII ступени), <b>D43</b> (на II), <b>D2</b> (на IV) — разрешаются в полное T53, а D2 — в T6.</p>` },
+  { id: "ear1", title: "Слух: интервалы", sub: "Узнаём интервалы на слух", gens: ["earInterval"], theory: `
+    <h4>Как слушать</h4><p>Нажмите «Сыграть» и пропойте про себя оба звука. Ориентиры:</p><ul><li><b>м2</b> — резкое «трение», <b>б2</b> — шаг гаммы;</li><li><b>б3</b> — светлая (начало мажорного трезвучия), <b>м3</b> — грустная;</li><li><b>ч4</b> — «призыв», <b>ч5</b> — пустая, открытая;</li><li><b>м6/б6</b> — широкие и певучие, <b>ч8</b> — тот же звук выше.</li></ul>` },
+  { id: "ear2", title: "Слух: аккорды и лады", sub: "Трезвучия и виды минора на слух", gens: ["earTriad", "earMode"], theory: `
+    <h4>Трезвучия</h4><p>Большое — светлое, малое — мягкое и грустное, увеличенное — «зависшее», напряжённое, уменьшённое — сжатое, тревожное.</p>
+    <h4>Лады</h4><p>Гармонический минор слышен по «восточному» скачку ув2 между VI и VII ступенями. Мелодический минор вверх звучит как мажор в верхней части гаммы.</p>` },
+];
+
+// ---------------------------------------------------------------- state
+const KEY = "solfeggio_v1";
+let S;
+try { S = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { S = {}; }
+S.done = S.done || {}; S.xp = S.xp || 0; S.streak = S.streak || 0;
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+const today = () => new Date().toISOString().slice(0, 10);
+function touchStreak() {
+  const t = today(); if (S.last === t) return;
+  const y = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+  S.streak = S.last === y ? S.streak + 1 : 1; S.last = t; save();
+}
+const app = document.getElementById("app");
+const head = () => { document.getElementById("xp").textContent = S.xp; document.getElementById("streak").textContent = S.streak; };
+const unlocked = (i) => i === 0 || S.done[UNITS[i - 1].id];
+
+// ---------------------------------------------------------------- screens
+function home() {
+  head();
+  const done = UNITS.filter((u) => S.done[u.id]).length;
+  app.innerHTML = `<h1>Путь к поступлению</h1><div class="sub">Пройдено тем: ${done} из ${UNITS.length}. Занимайтесь каждый день понемногу — серия 🔥 растёт.</div>
+    <div class="path">${UNITS.map((u, i) => `<div class="unit ${S.done[u.id] ? "done" : ""} ${unlocked(i) ? "" : "locked"}" data-i="${i}">
+      <div class="dot">${S.done[u.id] ? "✓" : i + 1}</div><div><h3>${u.title}</h3><p>${u.sub}</p></div></div>`).join("")}</div>
+    <p class="hint">Пройденные темы можно повторять сколько угодно: задания каждый раз новые.</p>`;
+  app.querySelectorAll(".unit").forEach((el) => el.onclick = () => { const i = +el.dataset.i; if (unlocked(i)) theory(i); });
+}
+function theory(i) {
+  const u = UNITS[i];
+  app.innerHTML = `<button class="back">← К темам</button><h1>${u.title}</h1><div class="theory pop">${u.theory}</div>
+    <button class="btn" id="go">Проверить себя · 8 заданий</button>`;
+  app.querySelector(".back").onclick = home;
+  document.getElementById("go").onclick = () => lesson(i);
+  window.scrollTo(0, 0);
+}
+function lesson(i) {
+  const u = UNITS[i], qs = Array.from({ length: 8 }, (_, j) => G[u.gens[j % u.gens.length]]());
+  let k = 0, right = 0;
+  const show = () => {
+    const q = qs[k]; let chosen = null, checked = false;
+    app.innerHTML = `<button class="back">✕ Выйти</button><div class="bar"><i style="width:${k / qs.length * 100}%"></i></div>
+      <div class="q">${q.q}</div>${q.play ? `<div class="play"><button class="btn ghost" id="pl">▶ Сыграть</button></div>` : ""}
+      <div class="opts">${q.opts.map((o) => `<button class="opt">${o}</button>`).join("")}</div>
+      <div class="fb" id="fb"></div><button class="btn" id="chk" disabled>Проверить</button>`;
+    app.querySelector(".back").onclick = home;
+    if (q.play) { document.getElementById("pl").onclick = q.play; setTimeout(q.play, 250); }
+    const btns = [...app.querySelectorAll(".opt")], chk = document.getElementById("chk"), fb = document.getElementById("fb");
+    btns.forEach((b) => b.onclick = () => { if (checked) return; btns.forEach((x) => x.classList.remove("sel")); b.classList.add("sel"); chosen = b.textContent; chk.disabled = false; });
+    chk.onclick = () => {
+      if (!checked) {
+        checked = true; const ok = chosen === q.a; if (ok) right++;
+        btns.forEach((b) => { if (b.textContent === q.a) b.classList.add("ok"); else if (b.textContent === chosen) b.classList.add("bad"); });
+        fb.className = "fb " + (ok ? "ok" : "bad"); fb.innerHTML = (ok ? "<b>Верно!</b> " : `<b>Правильно: ${q.a}.</b> `) + q.why;
+        chk.textContent = k + 1 < qs.length ? "Дальше" : "Завершить"; chk.className = "btn " + (ok ? "teal" : "");
+      } else { k++; k < qs.length ? show() : finish(i, right, qs.length); }
+    };
+  };
+  show();
+}
+function finish(i, right, n) {
+  const u = UNITS[i], passed = right >= 6, gained = right * 10 + (passed ? 20 : 0);
+  S.xp += gained; touchStreak(); if (passed) S.done[u.id] = true; save(); head();
+  app.innerHTML = `<div class="center pop"><div class="big">${passed ? "🎉" : "💪"}</div><h1>${passed ? "Тема пройдена!" : "Почти получилось"}</h1>
+    <p class="sub">Верно ${right} из ${n} · +${gained} ⭐</p></div>
+    <button class="btn ${passed ? "teal" : ""}" id="again">${passed ? "Повторить ещё раз" : "Попробовать снова"}</button>
+    <button class="btn ghost" id="toHome">К темам</button>`;
+  document.getElementById("again").onclick = () => lesson(i);
+  document.getElementById("toHome").onclick = home;
+}
+home();
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+</script>
+</body>
+</html>
